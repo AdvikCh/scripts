@@ -1,0 +1,2 @@
+#!/bin/bash
+ping -c 1 -s 0 websites-anonyly-chat.onrender.com
