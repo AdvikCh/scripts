@@ -1,0 +1,76 @@
+name: Turn Python code to Macintosh' executable
+on:
+  workflow_dispatch:
+    inputs:
+      chosen_repository:
+        description: "Name of the repository to pack"
+        required: true
+        type: string
+      python_file:
+        description: "Main Python file's name"
+        required: true
+        default: 'main.py'
+        type: string
+      foreign_libraries:
+        description: "Foreign libraries used (seperate with only `;`)"
+        required: false
+        default: ""
+        type: string
+      assets:
+        description: "Assets used by code mapped to what its name should be in the `.app` (Data:user_data)"
+        required: false
+        default: ""
+        type: string
+      icon:
+        description: "Relative path to the game's `.icns` file"
+        required: true
+        default: "Branding/Logo.icns"
+        type: string
+      final_name:
+        description: "What should be the name of the `.app`?"
+        required: true
+        default: ""
+        type: string
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Pull the repository
+        uses: actions/checkout@v4
+        with:
+          repository: '${{ github.repository_owner }}/${{ inputs.chosen_repository }}'
+          token: ${{ secrets.ACCESS }}
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Install foreign libraries
+        run: |
+          python -m pip install --upgrade pip
+          DEPS=$(echo "${{ inputs.foreign_libraries }}" | tr ';' ' ')
+          pip install pyinstaller $DEPS
+      - name: Pack as `.app`
+        run: |
+          ARGS=(--windowed --noconfirm)
+          if [ -n "$ICON" ] && [ -f "$ICON" ]; then
+            ARGS+=("--icon=$ICON")
+          fi
+          if [ -n "${{ inputs.assets }}" ]; then
+            IFS=';' read -ra PAIRS <<< "${{ inputs.assets }}"
+            for pair in "${PAIRS[@]}"; do
+              pair=$(echo "$pair" | xargs)
+              if [ -n "$pair" ]; then ARGS+=(--add-data "$pair")
+              fi
+            done
+          fi
+          ARGS+=(--name "${{ inputs.final_name }}")
+          pyinstaller "${ARGS[@]}" "${{ inputs.python_file }}"
+      - name: Zip `.app`
+        run: |
+          cd dist
+          zip -r "${{ inputs.final_name }}.zip" "${{ inputs.final_name }}.app"
+      - name: Upload `.app`
+        uses: actions/upload-artifact@v4
+        with:
+          name: '${{ inputs.final_name }}'
+          path: 'dist/*.zip'
