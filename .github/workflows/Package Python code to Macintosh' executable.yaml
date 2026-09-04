@@ -1,4 +1,4 @@
-name: Turn Python code to Macintosh' executable
+name: Package Python code to Macintosh' executable
 on:
   workflow_dispatch:
     inputs:
@@ -12,12 +12,12 @@ on:
         default: 'main.py'
         type: string
       foreign_libraries:
-        description: "Foreign libraries used (seperate with only `;`)"
+        description: "Foreign libraries used (separate with only `;`)"
         required: false
-        default: ""
+        default: "pygame-ce"
         type: string
       assets:
-        description: "Assets used by code mapped to what its name should be in the `.app` (Data:user_data)"
+        description: "Assets used by code (Format: source:dest;source2:dest2)"
         required: false
         default: ""
         type: string
@@ -31,46 +31,53 @@ on:
         required: true
         default: ""
         type: string
+
 jobs:
   build-macos:
     runs-on: macos-latest
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '10.13'
     steps:
       - name: Pull the repository
         uses: actions/checkout@v4
         with:
           repository: '${{ github.repository_owner }}/${{ inputs.chosen_repository }}'
           token: ${{ secrets.ACCESS }}
-      - name: Install Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.14'
+
+      - name: Install Universal2 Python 3.10
+        run: |
+          curl -O https://www.python.org/ftp/python/3.10.11/python-3.10.11-macos11.pkg
+          sudo installer -pkg python-3.10.11-macos11.pkg -target /
+
       - name: Install foreign libraries
         run: |
-          python -m pip install --upgrade pip
+          python3 -m pip install --upgrade pip
           DEPS=$(echo "${{ inputs.foreign_libraries }}" | tr ';' ' ')
-          pip install pyinstaller $DEPS
+          python3 -m pip install pyinstaller $DEPS
+
       - name: Pack as `.app`
         run: |
-          ARGS=(--windowed --noconfirm)
+          ARGS=(--windowed --noconfirm --target-arch universal2)
+          ICON="${{ inputs.icon }}"
           if [ -n "$ICON" ] && [ -f "$ICON" ]; then
             ARGS+=("--icon=$ICON")
           fi
+          
           if [ -n "${{ inputs.assets }}" ]; then
             IFS=';' read -ra PAIRS <<< "${{ inputs.assets }}"
             for pair in "${PAIRS[@]}"; do
               pair=$(echo "$pair" | xargs)
-              if [ -n "$pair" ]; then ARGS+=(--add-data "$pair")
+              if [ -n "$pair" ]; then 
+                ARGS+=(--add-data "$pair")
               fi
             done
           fi
           ARGS+=(--name "${{ inputs.final_name }}")
-          pyinstaller "${ARGS[@]}" "${{ inputs.python_file }}"
-      - name: Zip `.app`
-        run: |
-          cd dist
-          zip -r "${{ inputs.final_name }}.zip" "${{ inputs.final_name }}.app"
+          
+          python3 -m PyInstaller "${ARGS[@]}" "${{ inputs.python_file }}"
+
       - name: Upload `.app`
         uses: actions/upload-artifact@v4
         with:
           name: '${{ inputs.final_name }}'
-          path: 'dist/*.zip'
+          path: 'dist/*.app'
