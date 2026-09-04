@@ -51,7 +51,7 @@ jobs:
 
       - name: Install foreign libraries
         run: |
-          python3 -m pip install --upgrade pip
+          python3 -m pip install --upgrade pip --break-system-packages
           DEPS=$(echo "${{ inputs.foreign_libraries }}" | tr ';' ' ')
           python3 -m pip install pyinstaller $DEPS
 
