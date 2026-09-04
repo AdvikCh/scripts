@@ -1,4 +1,4 @@
-name: Package Python code to Macintosh' executable
+name: Turn Python code to Macintosh executable
 on:
   workflow_dispatch:
     inputs:
@@ -37,6 +37,7 @@ jobs:
     runs-on: macos-latest
     env:
       MACOSX_DEPLOYMENT_TARGET: '10.13'
+      PYTHON_BIN: '/Library/Frameworks/Python.framework/Versions/3.10/bin/python3'
     steps:
       - name: Pull the repository
         uses: actions/checkout@v4
@@ -51,9 +52,9 @@ jobs:
 
       - name: Install foreign libraries
         run: |
-          python3 -m pip install --upgrade pip --break-system-packages
+          $PYTHON_BIN -m pip install --upgrade pip
           DEPS=$(echo "${{ inputs.foreign_libraries }}" | tr ';' ' ')
-          python3 -m pip install pyinstaller $DEPS
+          $PYTHON_BIN -m pip install pyinstaller $DEPS
 
       - name: Pack as `.app`
         run: |
@@ -74,7 +75,7 @@ jobs:
           fi
           ARGS+=(--name "${{ inputs.final_name }}")
           
-          python3 -m PyInstaller "${ARGS[@]}" "${{ inputs.python_file }}"
+          $PYTHON_BIN -m PyInstaller "${ARGS[@]}" "${{ inputs.python_file }}"
 
       - name: Upload `.app`
         uses: actions/upload-artifact@v4
